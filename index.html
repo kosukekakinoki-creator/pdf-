@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ローカル PDF ツール</title>
+  <!-- PDFを加工するための部品を読み込む -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.6; }
+    .box { border: 2px dashed #ccc; padding: 24px; text-align: center; border-radius: 8px; margin: 20px 0; }
+    button { background: #0066cc; color: #fff; border: none; padding: 10px 16px; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+    button:disabled { background: #999; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h2>🔒 安全な PDF 結合ツール</h2>
+  <p>ファイルは外部に送信されず、お使いのパソコン内だけで処理されます。</p>
+
+  <div class="box">
+    <input type="file" id="files" multiple accept="application/pdf"><br><br>
+    <button id="mergeBtn" disabled>PDF を結合して保存</button>
+  </div>
+  <p id="msg"></p>
+
+  <script>
+    const input = document.getElementById('files');
+    const btn = document.getElementById('mergeBtn');
+    const msg = document.getElementById('msg');
+
+    // ファイルが2つ以上選ばれたらボタンを押せるようにする
+    input.addEventListener('change', () => {
+      btn.disabled = input.files.length < 2;
+      msg.textContent = input.files.length > 0 ? `${input.files.length} 個のファイルを選択中` : '';
+    });
+
+    // ボタンが押されたときの結合処理
+    btn.addEventListener('click', async () => {
+      msg.textContent = '結合中... しばらくお待ちください';
+      try {
+        const mergedPdf = await PDFLib.PDFDocument.create();
+        for (const file of input.files) {
+          const buffer = await file.arrayBuffer();
+          const pdf = await PDFLib.PDFDocument.load(buffer);
+          const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          pages.forEach(p => mergedPdf.addPage(p));
+        }
+
+        const mergedBytes = await mergedPdf.save();
+        const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        // 自動でダウンロードを開始する
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '結合済み.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        msg.textContent = '完了しました！ダウンロードを確認してください。';
+      } catch (err) {
+        msg.textContent = 'エラーが発生しました: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
